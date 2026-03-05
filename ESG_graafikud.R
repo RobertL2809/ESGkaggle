@@ -1,14 +1,15 @@
-# 1. Lae vajalikud paketid
 library(ggplot2)
 library(tidyverse)
 library(scales) 
 
+#NA value muutmine
+#df$GrowthRate[df$CompanyName == "Company_1" & df$Year == 2015] <- 0.05
 
 df <- read.csv("company_esg_financial_dataset.csv", sep = ",")
 
 
 
-# GRAAFIK 1: ESG_Overall vs ProfitMargin tööstusharude lõikes
+#GRAAFIK 1: ESG_Overall vs ProfitMargin tööstusharude lõikes
 
 p1 <- ggplot(df, aes(x = ESG_Overall, y = ProfitMargin, color = Industry)) +
   geom_point(alpha = 0.3) +
@@ -25,7 +26,7 @@ print(p1)
 
 
 
-# GRAAFIK 2: Süsinikuheitmete trendid ajas regioonide lõikes
+#GRAAFIK 2: Süsinikuheitmete trendid ajas regioonide lõikes
 
 # Arvutame regioonide keskmised iga aasta kohta
 df_trend <- df %>%
@@ -51,7 +52,7 @@ print(p2)
 
 
 
-# GRAAFIK 3: Energiaintensiivsus vs Tulu (Revenue) tööstusharude lõikes
+#GRAAFIK 3: Energiaintensiivsus vs Tulu (Revenue) tööstusharude lõikes
 
 p3 <- ggplot(df, aes(x = Revenue, y = EnergyConsumption, color = ESG_Environmental)) +
   geom_point(alpha = 0.6) +
@@ -69,19 +70,19 @@ p3 <- ggplot(df, aes(x = Revenue, y = EnergyConsumption, color = ESG_Environment
 
 print(p3)
 
-# GRAAFIK 4: Süsiniku intensiivsus ajas, regiooni põhjal. 
+#GRAAFIK 4: Süsiniku intensiivsus ajas, regiooni põhjal. 
 
-# Lisame andmestikku uue veeru: Süsiniku intensiivsus
+#Lisame andmestikku uue veeru: Süsiniku intensiivsus
 df <- df %>%
   mutate(CarbonIntensity = CarbonEmissions / Revenue)
 
-# Arvutame keskmise süsiniku intensiivsuse aastate ja regioonide lõikes
+#Arvutame keskmise süsiniku intensiivsuse aastate ja regioonide lõikes
 df_intensity_trend <- df %>%
   group_by(Year, Region) %>%
   summarise(AvgCarbonIntensity = mean(CarbonIntensity, na.rm = TRUE),
             .groups = "drop")
 
-# Loome uue graafiku (p4)
+# Loome graafiku
 p4 <- ggplot(df_intensity_trend, aes(x = Year, y = AvgCarbonIntensity, color = Region)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 3, alpha = 0.8) +
@@ -93,18 +94,18 @@ p4 <- ggplot(df_intensity_trend, aes(x = Year, y = AvgCarbonIntensity, color = R
     color = "Regioon") +
   theme_minimal()
 
-# Kuvame graafiku
+
 print(p4)
 
-# GRAAFIK 5: Süsiniku intensiivsus ajas, sektori põhjal. 
+#GRAAFIK 5: Süsiniku intensiivsus ajas, sektori põhjal. 
 
-# Arvutame keskmise süsiniku intensiivsuse aastate ja sektorite lõikes
+#Arvutame keskmise süsiniku intensiivsuse aastate ja sektorite lõikes
 df_intensity_trend_industry <- df %>%
   group_by(Year, Industry) %>%
   summarise(AvgCarbonIntensity = mean(CarbonIntensity, na.rm = TRUE),
             .groups = "drop")
 
-# Loome uue graafiku (p5)
+#Loome uue graafiku
 p5 <- ggplot(df_intensity_trend_industry, aes(x = Year, y = AvgCarbonIntensity, color = Industry)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 3, alpha = 0.8) +
@@ -116,44 +117,70 @@ p5 <- ggplot(df_intensity_trend_industry, aes(x = Year, y = AvgCarbonIntensity, 
        color = "Tööstusharu") +
   theme_minimal()
 
-# Kuvame graafiku
+
 print(p5)
 
 
 
-# Regressioonimudel: Turuväärtuse (MarketCap) ennustamine
+#Regressioonimudel: Turuväärtuse (MarketCap) ennustamine
 
-
-# Koostame lineaarse regressiooni mudeli
-# Valem: MarketCap sõltub tulust, kasumimarginaalist, üldisest ESG skoorist ja süsinikuheitmetest.
 mudel <- lm(MarketCap ~ Revenue + ProfitMargin + ESG_Overall + CarbonEmissions, data = df)
 
 # mudeli statistiline kokkuvõte
-#koefitsendid (Estimate), p-väärtuseid (Pr(>|t|)) ja R-ruutu (Multiple R-squared)
+#vaata - koefitsendid (Estimate), p-väärtused (Pr(>|t|)) ja R-ruut (Multiple R-squared)
 print(summary(mudel))
-#ESG_overall p -väärtus 0.08, esg väärtus ei ole statistiliselt oluline. R ruudus 0.74, mudel seletab 74% juhtudest minu andmete põhjal
+#ESG_overall p - väärtus 0.08, esg väärtus ei ole statistiliselt oluline. R ruudus 0.74, mudel seletab 74% juhtudest 
 
-#Lisame mudeli tehtud ennustused oma andmestikku, et neid reaalsusega võrrelda
+#Lisan mudeli tehtud ennustused oma andmestikku, et neid võrrelda
 df <- df %>%
-  # drop_na() eemaldab read, kus mõni muutuja on puudu (nt 2015 aasta GrowthRate vms), 
-  # et predict() funktsioon töötaks tõrgeteta
+  #drop_na() eemaldab read, kus mõni muutuja on puudu (nt 2015 aasta GrowthRate vms), 
+  #et predict() funktsioon töötaks 
   drop_na(MarketCap, Revenue, ProfitMargin, ESG_Overall, CarbonEmissions) %>% 
   mutate(PredictedMarketCap = predict(mudel, newdata = .))
 
-# 4. Loome graafiku: Tegelik turuväärtus vs Ennustatud turuväärtus
+#Loome graafiku: Tegelik turuväärtus vs Ennustatud turuväärtus
 p6 <- ggplot(df, aes(x = MarketCap, y = PredictedMarketCap, color = ESG_Overall)) +
   geom_point(alpha = 0.5) +
   geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 0.6) + #ennustusjoon
   scale_color_viridis_c(option = "mako") + 
   scale_x_continuous(labels = comma) +
   scale_y_continuous(labels = comma) +
-  labs(
-    title = "Regressioonimudel: Tegelik vs Ennustatud Turuväärtus",
+  labs(title = "Regressioonimudel: Tegelik vs Ennustatud Turuväärtus",
     subtitle = "Punane joon tähistab ideaalset ennustust. Värv näitab ESG skoori.",
     x = "Tegelik Turuväärtus (MarketCap)",
     y = "Mudeli ennustatud Turuväärtus",
-    color = "ESG Skoor"
-  ) +
+    color = "ESG Skoor") +
   theme_minimal()
 
 print(p6)
+
+
+
+#Regressioonimudel: Uurime, kas ja kuidas vee- ja energiakasutus ennustavad süsinikuheitmeid
+
+mudel_co2 <- lm(CarbonEmissions ~ WaterUsage + EnergyConsumption, data = df)
+
+#Kuvame mudeli statistilise kokkuvõtte
+print(summary(mudel_co2)) #R 0.99 #Tundub et peaks uurima hoopis iga tööstusharu jaoks eraldi?
+
+#lisame ennustused andmestikku graafiku jaoks
+
+df_mudel <- df %>%
+  drop_na(CarbonEmissions, WaterUsage, EnergyConsumption) %>% 
+  mutate(PredictedCO2 = predict(mudel_co2, newdata = .))
+
+#graafik: Tegelik vs Ennustatud süsinikuheide
+p7 <- ggplot(df_mudel, aes(x = CarbonEmissions, y = PredictedCO2, color = Industry)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linewidth = 0.7) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  coord_cartesian(xlim = c(0, 10000000), ylim = c(0, 10000000))+
+  labs(title = "Tegelik vs Ennustatud CO2",
+    subtitle = "Kui hästi ennustavad vesi ja energia süsinikuheitmeid?",
+    x = "Tegelik süsinikuheide (CO2 tonni)",
+    y = "Mudeli ennustatud süsinikuheide",
+    color = "Tööstusharu") +
+  theme_minimal()
+
+print(p7)
